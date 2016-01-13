@@ -15,7 +15,7 @@ K=0
 L=1
 M=0
 N=1
-O=1
+O=0
 P=1
 Q=0
 R=0
@@ -132,3 +132,10 @@ Item0=DCU
 [HistoryLists\hlOutputDirectorry]
 Count=1
 Item0=EXE
+[Exception Log]
+EurekaLog Version=7007
+Activate=0
+DeleteMapAfterCompile=1
+Encrypt Password=""
+
+
