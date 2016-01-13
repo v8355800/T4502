@@ -6,7 +6,8 @@ program T4502_Console;
 uses
   SysUtils,
   Console,
-  T4502 in 'T4502.pas';
+  T4502 in 'T4502.pas',
+  PCI1751 in 'PCI1751.pas';
 
 var
   fIO: TT4502_IO;
