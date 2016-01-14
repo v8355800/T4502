@@ -23,12 +23,28 @@ const
 type
   TPort = (P0, P1);
   TPortAll = (PA0, PA1, PB0, PB1, PC0_L, PC0_H, PC1_L, PC1_H);
-  
+  TPortIndex = 0..7;
+
   TPortMode = (pmIN, pmOUT);
 
   TPCI1751 = class(TObject)
   private
     fBaseAddr: Int64;
+    fEmulation: Boolean;
+    function GetA0(Index: TPortIndex): Byte;
+    function GetA1(Index: TPortIndex): Byte;
+    function GetB0(Index: TPortIndex): Byte;
+    function GetB1(Index: TPortIndex): Byte;
+    function GetC0(Index: TPortIndex): Byte;
+    function GetC1(Index: TPortIndex): Byte;
+    procedure SetA0(Index: TPortIndex; const Value: Byte);
+    procedure SetA1(Index: TPortIndex; const Value: Byte);
+    procedure SetB0(Index: TPortIndex; const Value: Byte);
+    procedure SetB1(Index: TPortIndex; const Value: Byte);
+    procedure SetC0(Index: TPortIndex; const Value: Byte);
+    procedure SetC1(Index: TPortIndex; const Value: Byte);
+    function ReadConfigP0: Byte;
+    function ReadConfigP1: Byte;
   protected
 
   public
@@ -37,6 +53,17 @@ type
     procedure SetPortMode(Port: TPortAll; Mode: TPortMode); overload;
 
     property BaseAddr: Int64 read fBaseAddr;
+    property Emulation: Boolean read fEmulation;
+
+    property A0[Index: TPortIndex]: Byte read GetA0 write SetA0;
+    property B0[Index: TPortIndex]: Byte read GetB0 write SetB0;
+    property C0[Index: TPortIndex]: Byte read GetC0 write SetC0;
+    property A1[Index: TPortIndex]: Byte read GetA1 write SetA1;
+    property B1[Index: TPortIndex]: Byte read GetB1 write SetB1;
+    property C1[Index: TPortIndex]: Byte read GetC1 write SetC1;
+
+    property ConfigP0: Byte read ReadConfigP0;
+    property ConfigP1: Byte read ReadConfigP1;
   end;
 
 //procedure PA0_Mode(Mode: TPortMode);
@@ -60,7 +87,8 @@ type
 implementation
 
 uses
-  PCI1751_Detect;
+//  SysUtils,
+  DeviceDetect;
 
 { Функции для работы с портами ввода/вывода }
 function Inp32(PortAdr: Word): Byte; stdcall; external 'inpout32.dll';
@@ -74,21 +102,151 @@ function Out32(wAddr: Word; bOut: Byte): Byte; stdcall; external 'inpout32.dll';
 { TPCI1751 }
 
 constructor TPCI1751.Create(const BaseAddr: Int64);
+var
+  List: TDetectedDeviceList;
+//  i: Integer;
 begin
   inherited Create;
+
   if BaseAddr <> 0 then
     fBaseAddr := BaseAddr
   else
-    getPortsWDM('VEN_13FE&DEV_1751', 'PCI');
-//    getPortsWDM('VEN_1969&DEV_1091');
+  begin
+    List := TDetectedDeviceList.Create;
+    getDevicesWDM(List, 'VEN_13FE&DEV_1751', 'PCI');
+//    getPortsWDM(List, 'VEN_10EC&DEV_8168', 'PCI');
+//    getPortsWDM(List, 'VEN_8086&DEV_', 'PCI');
+
+    if List.Count > 0 then
+      fBaseAddr := List[0].portStart
+    else
+      fBaseAddr := 0;
+//    for i := 0 to List.Count - 1 do
+//      Writeln(List[i].friendlyName, ' (IO = 0x',  IntToHex(List[i].portStart, 4), ')');
+
+    List.Free;
+  end;
+
+  fEmulation := fBaseAddr <= 0;
 end;
 
 procedure TPCI1751.SetPortMode(Port: TPort; bMode: Byte);
 begin
+  if fEmulation then
+    Exit;
+
   case Port of
     P0: Out32(fBaseAddr + 3, bMode);
     P1: Out32(fBaseAddr + 7, bMode);
   end;
+end;
+
+function TPCI1751.GetA0(Index: TPortIndex): Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 0);
+end;
+
+function TPCI1751.GetA1(Index: TPortIndex): Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 4);
+end;
+
+function TPCI1751.GetB0(Index: TPortIndex): Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 1);
+end;
+
+function TPCI1751.GetB1(Index: TPortIndex): Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 5);
+end;
+
+function TPCI1751.GetC0(Index: TPortIndex): Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 2);
+end;
+
+function TPCI1751.GetC1(Index: TPortIndex): Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 6);
+end;
+
+procedure TPCI1751.SetA0(Index: TPortIndex; const Value: Byte);
+begin
+  if fEmulation then
+    Exit;
+
+  Out32(fBaseAddr + 0, Value);
+end;
+
+procedure TPCI1751.SetA1(Index: TPortIndex; const Value: Byte);
+begin
+  if fEmulation then
+    Exit;
+
+  Out32(fBaseAddr + 4, Value);
+end;
+
+procedure TPCI1751.SetB0(Index: TPortIndex; const Value: Byte);
+begin
+  if fEmulation then
+    Exit;
+
+  Out32(fBaseAddr + 1, Value);
+end;
+
+procedure TPCI1751.SetB1(Index: TPortIndex; const Value: Byte);
+begin
+  if fEmulation then
+    Exit;
+
+  Out32(fBaseAddr + 5, Value);
+end;
+
+procedure TPCI1751.SetC0(Index: TPortIndex; const Value: Byte);
+begin
+  if fEmulation then
+    Exit;
+
+  Out32(fBaseAddr + 2, Value);
+end;
+
+procedure TPCI1751.SetC1(Index: TPortIndex; const Value: Byte);
+begin
+  if fEmulation then
+    Exit;
+
+  Out32(fBaseAddr + 6, Value);
 end;
 
 procedure TPCI1751.SetPortMode(Port: TPortAll; Mode: TPortMode);
@@ -96,7 +254,7 @@ var
   RegVal: Byte;
   NewRegVal: Byte;
 begin
-  if fBaseAddr <= 0 then
+  if fEmulation then
     Exit;
 
   case Port of
@@ -126,6 +284,26 @@ begin
     PA0, PB0, PC0_L, PC0_H: Out32(BaseAddr + 3, NewRegVal);
     PA1, PB1, PC1_L, PC1_H: Out32(BaseAddr + 7, NewRegVal);
   end;
+end;
+
+function TPCI1751.ReadConfigP0: Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 3);
+end;
+
+function TPCI1751.ReadConfigP1: Byte;
+begin
+  if fEmulation then
+  begin
+    Result := 0;
+    Exit;
+  end;
+  Result := Inp32(fBaseAddr + 7);
 end;
 
 end.
