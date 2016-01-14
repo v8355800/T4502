@@ -654,9 +654,9 @@ begin
             getPortResourcesWDMConfigManager(PDevice, {ports[n],} devInfoData.DevInst);
             DevList.Add(PDevice);
 
-            write('->');
+//            write('->');
           end;
-          Writeln('  ',friendlyname, #9, hardwareID);
+//          Writeln('  ',friendlyname, #9, hardwareID);
           // retrieve port name from registry, for example: LPT1, LPT2, COM1, COM2
 //          key :=
 //            SetupDiOpenDevRegKey(
