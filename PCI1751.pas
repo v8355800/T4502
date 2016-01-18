@@ -19,9 +19,9 @@ type
 
   TPCI1751 = class(TObject)
   private
-    fBaseAddr: Int64;
     fFriendlyName: string;
-    fEmulation: Boolean;
+    
+    procedure Reset;
 
     function GetPA0(Index: TPortIndex2): Byte;
     function GetPA1(Index: TPortIndex2): Byte;
@@ -49,9 +49,12 @@ type
     procedure SetPC(Index1: TPortIndex1; Index2: TPortIndex2;
       const Value: Byte);
   protected
+    fBaseAddr: Int64;
+    fEmulation: Boolean;
 
   public
     constructor Create(const BaseAddr: Int64 = 0);
+    destructor  Destroy; override;
 //    procedure SetPortMode(Port: TPort; bMode: Byte); overload;
 //    procedure SetPortMode(Port: TPortAll; Mode: TPortMode); overload;
 
@@ -98,6 +101,8 @@ begin
     begin
       fFriendlyName := List[0].friendlyName;
       fBaseAddr := List[0].portStart;
+
+      Reset;
     end
     else
     begin
@@ -365,5 +370,19 @@ end;
 //    PA1, PB1, PC1_L, PC1_H: Out32(BaseAddr + 7, NewRegVal);
 //  end;
 //end;
+
+destructor TPCI1751.Destroy;
+begin
+  Reset;
+  
+  inherited;
+end;
+
+procedure TPCI1751.Reset;
+begin
+  // Configure ports - ALL IN
+  Out32(fBaseAddr + 3, $1B); // PA0 - in; PB0 - in; PC0 - in
+  Out32(fBaseAddr + 7, $1B); // PA1 - in; PB1 - in; PC1 - in
+end;
 
 end.
