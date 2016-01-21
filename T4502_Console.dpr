@@ -27,7 +27,7 @@ begin
 
       while (not KeyPressed) do
       begin
-        Writeln(fTester.Propusk);
+        Writeln(fTester.PASS);
       end;
       ReadKey;
     end;

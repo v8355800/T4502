@@ -7,20 +7,25 @@ uses
 
 type
   TS3 = string[3];
+  TS4 = string[4];
   TS6 = string[6];
+
+  TOCTSet = '0'..'7';
 
   TT4502_IO = class(TPCI1751)
   private
   protected
-    procedure OutputCycle(const ADDR_OCT, DATA_OCT: TS6);
-    procedure InputCycle(const ADDR_OCT: TS6; var DATA_OCT: TS6);
+    procedure OutputCycle(const ADDR8, DATA8: TS6);
+    procedure InputCycle(const ADDR8: TS6; var DATA8: TS6);
   public
     constructor Create;
 
     function  RS(const ADDR: TS3): Word; overload;       // Регистр состояния 16xxx0
-    function  RS: Word; overload;                      // Регистр состояния 16xxx0
-    procedure  W(const ADDR: TS3; DATA: TS6);  // Выходной буфер    16xxx2
-    function   R(const ADDR: TS3): Word;       // Входной буфер     16xxx4
+    function  RS: Word; overload;                        // Регистр состояния 16xxx0
+    procedure  W(const ADDR: TS3; DATA: TS4);            // Выходной буфер    16xxx2
+    function   R(const ADDR: TS3): Word;                 // Входной буфер     16xxx4
+
+//    property REG0(ADDR: TS3): Word read GetREG0 write SetREG0;
   end;
 
 type
@@ -29,8 +34,6 @@ type
   end;
 
 type
-  TS4 = string[4];
-
   TT4502 = class(TObject)
   private
     fIO: TT4502_IO;
@@ -42,10 +45,9 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    function Propusk: Boolean;
-    procedure K(Command: TS4); overload;
-    function  K(Command: TS4): Word; overload;
-
+    function PASS: Boolean;                                                      // ПРОПУСК
+    procedure WriteCommand(Command, Data: TS4);
+    function ReadCommand(Command: TS4): Word;
 
     property IO: TT4502_IO read fIO;
   end;
@@ -53,14 +55,8 @@ type
 implementation
 
 uses
+  StrUtils, SysUtils,
   CONVUNIT;
-
-{ TT4502_Commands }
-
-//procedure TT4502_Commands.K01;
-//begin
-//
-//end;
 
 constructor TT4502_IO.Create;
 begin
@@ -92,14 +88,14 @@ end;
 //                                 Цыкл "ВЫВОД"
 //                           передача данных в тестер
 //------------------------------------------------------------------------------
-procedure TT4502_IO.OutputCycle(const ADDR_OCT, DATA_OCT: TS6);
+procedure TT4502_IO.OutputCycle(const ADDR8, DATA8: TS6);
 var
   ADDR_DEC: Word;
   DATA_DEC: Word;
   D0, D1: Byte;
 begin
-  ADDR_DEC := OCT2DEC(ADDR_OCT);
-  DATA_DEC := OCT2DEC(DATA_OCT);
+  ADDR_DEC := OCT2DEC(ADDR8);
+  DATA_DEC := OCT2DEC(DATA8);
 
   // 1. К ДА = ADDR
     Out32(fBaseAddr + 1, Lo(not ADDR_DEC));  // PB0
@@ -136,13 +132,13 @@ end;
 //                                 Цыкл "ВВОД"                                  
 //                          передача данных из тестера                          
 //------------------------------------------------------------------------------
-procedure TT4502_IO.InputCycle(const ADDR_OCT: TS6; var DATA_OCT: TS6);
+procedure TT4502_IO.InputCycle(const ADDR8: TS6; var DATA8: TS6);
 var
   ADDR_DEC: Word;
   DATA_DEC_Array: array[0..1] of Byte;
   DATA_DEC: word absolute DATA_DEC_Array;
 begin
-  ADDR_DEC := OCT2DEC(ADDR_OCT);
+  ADDR_DEC := OCT2DEC(ADDR8);
 
   // 1. К ДА = ADDR
     Out32(fBaseAddr + 1, Lo(not ADDR_DEC));  // PB0
@@ -165,7 +161,7 @@ begin
   // 9. Считываем данные
     DATA_DEC_Array[0] := not Inp32(fBaseAddr + 0);
     DATA_DEC_Array[1] := not Inp32(fBaseAddr + 4);
-    DATA_OCT := DEC2OCT(DATA_DEC);
+    DATA8 := DEC2OCT(DATA_DEC);
   // 10. Ждем, пока К СИП не станет равен 1
   //  while (PC0[2] = 0) do ;
   // 11. К СИА = 1
@@ -180,7 +176,7 @@ begin
   Result := OCT2DEC(D);
 end;
 
-procedure TT4502_IO.W(const ADDR: TS3; DATA: TS6);
+procedure TT4502_IO.W(const ADDR: TS3; DATA: TS4);
 begin
   OutputCycle('16' + ADDR + '2', DATA);
 end;
@@ -214,20 +210,19 @@ begin
   inherited;
 end;
 
-procedure TT4502.K(Command: TS4);
-begin
-  inherited;
-
-end;
-
-function TT4502.K(Command: TS4): Word;
-begin
-
-end;
-
-function TT4502.Propusk: Boolean;
+function TT4502.PASS: Boolean;
 begin
   Result := ((fIO.RS shr 7) and 1) = 1;
+end;
+
+function TT4502.ReadCommand(Command: TS4): Word;
+begin
+  Result := fIO.R(RightStr(Command, 3));
+end;
+
+procedure TT4502.WriteCommand(Command, Data: TS4);
+begin
+  fIO.W(RightStr(Command, 3), Data);
 end;
 
 end.

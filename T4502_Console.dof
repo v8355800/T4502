@@ -94,7 +94,7 @@ OutputDir=EXE
 UnitOutputDir=DCU
 PackageDLLOutputDir=
 PackageDCPOutputDir=
-SearchPath=
+SearchPath=Common
 Packages=vcl;rtl;dbrtl;inet;inetdb;dsnap;bdertl;vclx;vcldb;vcldbx;visualclx;visualdbclx;vclactnband;vclshlctrls;vclie;xmlrtl;inetdbbde;inetdbxpress;webdsnap;soaprtl;websnap;adortl;dbexpress;dsnapcon;dbxcds;ibxpress;teeui;teedb;tee;dss;indy;VclSmp;qrpt;teeqr;Rave50CLX;Rave50VCL;IntrawebDB_50_70;Intraweb_50_70;VclNewlyext;NativeExcelD7;EurekaLogCore;JclDeveloperTools;Jcl;JclVcl;JclContainers;JvCore;JvSystem;JvStdCtrls;JvAppFrm;JvBands;JvDB;JvDlgs;JvBDE;JvControls;JvCmp;JvCrypt;JvCustom;JvDocking;JvDotNetCtrls;JvGlobus;JvHMI;JvJans;JvManagedThreads;JvMM;JvNet;JvPageComps;JvPascalInterpreter;JvPluginSystem;JvPrintPreview;JvRuntimeDesign;JvTimeFramework;JvWizards;JvXPCtrls;A406_R70;DelphiX70;IOPortP;NxCommonRun_d7;NxCommonDsgn_d7;NxGridRun_d7;NxGridDsgn_d7;NxDBGridRun_d7;NxInspectorRun_d7;NxInspectorDsgn_d7;NxCollectionRun_d7;NxCollectionDsgn_d7;NxSheetRun_d7;NxThirdpartyRun_d7;NxAddonsRun_d7
 Conditionals=
 DebugSourceDirs=
@@ -126,16 +126,12 @@ CodePage=1251
 [HistoryLists\hlUnitAliases]
 Count=1
 Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=1
+Item0=Common
 [HistoryLists\hlUnitOutputDirectory]
 Count=1
 Item0=DCU
 [HistoryLists\hlOutputDirectorry]
 Count=1
 Item0=EXE
-[Exception Log]
-EurekaLog Version=7007
-Activate=0
-DeleteMapAfterCompile=1
-Encrypt Password=""
-
-
