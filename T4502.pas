@@ -3,6 +3,7 @@ unit T4502;
 interface
 
 uses
+  Classes,
   PCI1751;
 
 type
@@ -29,8 +30,22 @@ type
   end;
 
 type
-  TT4502_Commands = class(TObject)
+  TK = (01, 02);
+  TCommand = record
+    K:
+    V:
+  end;
+
+  TT4502_Program = class(TObject)
+  private
+    fFile: TStringList;
+
+
   public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure LoadFromFile(const FileName: string);
   end;
 
 type
@@ -223,6 +238,28 @@ end;
 procedure TT4502.WriteCommand(Command, Data: TS4);
 begin
   fIO.W(RightStr(Command, 3), Data);
+end;
+
+{ TT4502_Program }
+
+constructor TT4502_Program.Create;
+begin
+  inherited Create;
+
+  fFile := TStringList.Create;
+end;
+
+destructor TT4502_Program.Destroy;
+begin
+  fFile.Free;
+
+  inherited;
+end;
+
+procedure TT4502_Program.LoadFromFile(const FileName: string);
+begin
+  if FileExists(FileName) then
+    fFile.LoadFromFile(FileName);
 end;
 
 end.
