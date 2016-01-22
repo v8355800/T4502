@@ -30,16 +30,27 @@ type
   end;
 
 type
-  TK = (01, 02);
   TCommand = record
-    K:
-    V:
+    K: TS4;
+    V: TS4;
   end;
+  PCommand = ^TCommand;
+
+  TTest = class(TList)
+//  TMyRecList=class(TList)
+  private
+    function Get(Index: Integer): PCommand;
+  public
+    destructor Destroy; override;
+    function Add(Value: PCommand): Integer;
+    property Items[Index: Integer]: PCommand read Get; default;
+  end;
+  PTest = ^TTest;
 
   TT4502_Program = class(TObject)
   private
     fFile: TStringList;
-
+    fTests: TList;
 
   public
     constructor Create;
@@ -260,6 +271,27 @@ procedure TT4502_Program.LoadFromFile(const FileName: string);
 begin
   if FileExists(FileName) then
     fFile.LoadFromFile(FileName);
+end;
+
+{ TTest }
+
+function TTest.Add(Value: PCommand): Integer;
+begin
+  Result := inherited Add(Value);
+end;
+
+destructor TTest.Destroy;
+var
+  i: Integer;
+begin
+  for i := 0 to Count - 1 do
+    FreeMem(Items[i]);
+  inherited;
+end;
+
+function TTest.Get(Index: Integer): PCommand;
+begin
+  Result := PCommand(inherited Get(Index));
 end;
 
 end.
