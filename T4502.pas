@@ -3,7 +3,7 @@ unit T4502;
 interface
 
 uses
-  Classes,
+  Classes, Contnrs,
   PCI1751;
 
 type
@@ -37,33 +37,57 @@ type
   PCommand = ^TCommand;
 
   TTest = class(TList)
-//  TMyRecList=class(TList)
   private
+    fN: Cardinal;
+
     function Get(Index: Integer): PCommand;
   public
+    constructor Create;
     destructor Destroy; override;
     function Add(Value: PCommand): Integer;
-    property Items[Index: Integer]: PCommand read Get; default;
-  end;
-  PTest = ^TTest;
+    function AddCommand(K, V: String): Integer;
 
-  TT4502_Program = class(TObject)
+    property Items[Index: Integer]: PCommand read Get; default;
+    property N: Cardinal read fN write fN;
+  end;
+
+  TPlan = class(TObjectList)
   private
     fFile: TStringList;
-    fTests: TList;
+    fCaption: string;
 
+    function GetItems(Index: Integer): TTest;
+    procedure SetItems(Index: Integer; const Value: TTest);
   public
     constructor Create;
     destructor Destroy; override;
 
     procedure LoadFromFile(const FileName: string);
+
+    property Items[Index: Integer]: TTest read GetItems write SetItems; default;
+    property Caption: String read fCaption write fCaption;
+  end;
+
+  TT4502_Program = class(TObject)
+  private
+    fPlans: array[1..15] of TPlan;
+    function GetPlan(Index: Integer): TPlan;
+
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure Clear;
+    procedure LoadFromFile(const FileName: string);
+
+    property Plans[Index: Integer]: TPlan read GetPlan;
   end;
 
 type
   TT4502 = class(TObject)
   private
     fIO: TT4502_IO;
-//    fCommands: TT4502_Commands;
+    fWP: TT4502_Program;
   protected
 
   public
@@ -76,13 +100,23 @@ type
     function ReadCommand(Command: TS4): Word;
 
     property IO: TT4502_IO read fIO;
+    property WP: TT4502_Program read fWP;
   end;
 
 implementation
 
 uses
-  StrUtils, SysUtils,
-  CONVUNIT;
+  Windows, StrUtils, SysUtils,
+  CONVUNIT, PerlRegEx;
+
+function StrOemToAnsi(const aStr : AnsiString) : AnsiString;
+var
+  Len : Integer;
+begin
+  Len := Length(aStr);
+  SetLength(Result, Len);
+  OemToCharBuffA(PAnsiChar(aStr), PAnsiChar(Result), Len);
+end;
 
 constructor TT4502_IO.Create;
 begin
@@ -227,11 +261,13 @@ begin
   inherited Create;
 
   fIO := TT4502_IO.Create;
+  fWP := TT4502_Program.Create;
 end;
 
 destructor TT4502.Destroy;
 begin
   fIO.Free;
+  fWP.Free;
   
   inherited;
 end;
@@ -253,24 +289,50 @@ end;
 
 { TT4502_Program }
 
+procedure TT4502_Program.Clear;
+var
+  i: Byte;
+begin
+  for i := Low(fPlans) to High(fPlans) do
+  begin
+    fPlans[i].Clear;
+  end;
+end;
+
 constructor TT4502_Program.Create;
+var
+  i: Byte;
 begin
   inherited Create;
 
-  fFile := TStringList.Create;
+  for i := Low(fPlans) to High(fPlans) do
+    fPlans[i] := TPlan.Create;
 end;
 
 destructor TT4502_Program.Destroy;
+var
+  i: Byte;
 begin
-  fFile.Free;
+  for i := Low(fPlans) to High(fPlans) do
+    fPlans[i].Free;
 
   inherited;
+end;
+
+function TT4502_Program.GetPlan(Index: Integer): TPlan;
+begin
+  if Index in [Low(fPlans)..High(fPlans)] then
+    Result := fPlans[Index];
 end;
 
 procedure TT4502_Program.LoadFromFile(const FileName: string);
 begin
   if FileExists(FileName) then
-    fFile.LoadFromFile(FileName);
+  begin
+//    fFile.LoadFromFile(FileName);
+//    Clear;
+//    Parse;
+  end;
 end;
 
 { TTest }
@@ -280,18 +342,127 @@ begin
   Result := inherited Add(Value);
 end;
 
+function TTest.AddCommand(K, V: String): Integer;
+var
+  P: PCommand;
+begin
+  New(P);
+  P.K := K;
+  P.V := V;
+  Result := Add(P);
+end;
+
+constructor TTest.Create;
+begin
+  fN := 0;
+end;
+
 destructor TTest.Destroy;
 var
   i: Integer;
 begin
   for i := 0 to Count - 1 do
-    FreeMem(Items[i]);
+    Dispose(Items[i]);
+
   inherited;
 end;
 
 function TTest.Get(Index: Integer): PCommand;
 begin
   Result := PCommand(inherited Get(Index));
+end;
+
+{ TPlan }
+
+function TPlan.GetItems(Index: Integer): TTest;
+begin
+  Result := TTest(inherited GetItem(Index));
+end;
+
+procedure TPlan.SetItems(Index: Integer; const Value: TTest);
+begin
+  inherited SetItem(Index, Value);
+end;
+
+constructor TPlan.Create;
+begin
+  inherited Create;
+
+  fFile := TStringList.Create;
+  fCaption := '';
+end;
+
+destructor TPlan.Destroy;
+var
+  i: Integer;
+begin
+  fFile.Free;
+//  for i := 0 to Count - 1 do
+//    Items[i].Free;
+//    FreeMem(Items[i]);
+
+  inherited;
+end;
+//
+//function TPlan.Get(Index: Integer): PTest;
+//begin
+//  Result := PTest(inherited Get(Index));
+//end;
+
+procedure TPlan.LoadFromFile(const FileName: string);
+const
+  RE_Test = 'T(\d*)\r\n(.*?)(?:KT;|XX)';
+  RE_Command = 'T(\d*)\r\n(.*?)(?:KT;|XX)';
+var
+	Regex: TPerlRegEx;
+	Strings: TStringList;
+  i: Integer;
+
+  Test: TTest;
+  Command: PCommand;
+begin
+  if not FileExists(FileName) then
+    Exit;
+
+  fFile.LoadFromFile(FileName);
+  fFile.Text := StrOemToAnsi(fFile.Text);
+//  fFile.SaveToFile(ChangeFileExt(FileName, '.NEW'));
+
+  { Remove comments }
+  for i := fFile.count - 1 downto 0 do
+  begin
+    if Trim(fFile[I])[1] = '#' then
+      fFile.Delete(I);
+  end;
+
+  fCaption := fFile[0];
+  Clear;
+
+  {  }
+  Regex := TPerlRegEx.Create;
+  Strings := TStringList.Create;
+  try
+    Regex.RegEx := RE_Test;
+    Regex.Options := [preSingleLine, preMultiLine];
+    Regex.Subject := fFile.Text;
+    if Regex.Match then
+    begin
+      repeat
+//        if Regex.GroupCount >= 1 then
+//          Strings.Add(Regex.Groups[1])
+//        else
+//          Strings.Add('');
+//        Test := TTest.Create;
+//        GetMem(Test, SizeOf(TTest));
+//        Test.N := StrToInt(Regex.Groups[1]);
+//        Add(@Test);
+      until not Regex.MatchAgain;
+    end;
+  finally
+    Strings.Free;
+    Regex.Free;
+  end;
+
 end;
 
 end.
