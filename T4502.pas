@@ -36,21 +36,31 @@ type
   end;
   PCommand = ^TCommand;
 
+  TTestResult = record
+    Val: Extended;
+    Units: string;
+    Good: Boolean;
+  end;
+
   TTest = class(TList)
   private
     fN: Cardinal;
 
     function Get(Index: Integer): PCommand;
   public
-    constructor Create;
+    constructor Create; overload;
+    constructor Create(const TestN: Cardinal; TestStr: String); overload;
     destructor Destroy; override;
     function Add(Value: PCommand): Integer;
     function AddCommand(K, V: String): Integer;
+    function Execute: TTestResult;
 
     property Items[Index: Integer]: PCommand read Get; default;
     property N: Cardinal read fN write fN;
   end;
 
+  TRunMode    = (rmNormal, rmStep, rmLoop);
+  TPlanResult = (prGood, prDefect);
   TPlan = class(TObjectList)
   private
     fFile: TStringList;
@@ -63,6 +73,7 @@ type
     destructor Destroy; override;
 
     procedure LoadFromFile(const FileName: string);
+    function Execute(const RunMode: TRunMode): TPlanResult;
 
     property Items[Index: Integer]: TTest read GetItems write SetItems; default;
     property Caption: String read fCaption write fCaption;
@@ -152,7 +163,7 @@ procedure TT4502_IO.OutputCycle(const ADDR8, DATA8: TS6);
 var
   ADDR_DEC: Word;
   DATA_DEC: Word;
-  D0, D1: Byte;
+//  D0, D1: Byte;
 begin
   ADDR_DEC := OCT2DEC(ADDR8);
   DATA_DEC := OCT2DEC(DATA8);
@@ -187,10 +198,9 @@ begin
     PC1[3] := 1;
 end;
 
-
 //------------------------------------------------------------------------------
-//                                 Цыкл "ВВОД"                                  
-//                          передача данных из тестера                          
+//                                 Цыкл "ВВОД"
+//                          передача данных из тестера
 //------------------------------------------------------------------------------
 procedure TT4502_IO.InputCycle(const ADDR8: TS6; var DATA8: TS6);
 var
@@ -322,7 +332,9 @@ end;
 function TT4502_Program.GetPlan(Index: Integer): TPlan;
 begin
   if Index in [Low(fPlans)..High(fPlans)] then
-    Result := fPlans[Index];
+    Result := fPlans[Index]
+  else
+    Result := nil;
 end;
 
 procedure TT4502_Program.LoadFromFile(const FileName: string);
@@ -354,7 +366,45 @@ end;
 
 constructor TTest.Create;
 begin
+  inherited Create;
+
   fN := 0;
+end;
+
+constructor TTest.Create(const TestN: Cardinal; TestStr: String);
+  const
+//    RE_Command = '([а-яА-Яa-zA-Z0-9]+)\s([а-яА-Яa-zA-Z0-9]+)';
+    RE_Command = '(И[1-7][1-2]|И73|Y0[1-2]|R|Д0[1-2]|0[1-9]|[1-3][0-9]|4[0-8])\s(\d+)';
+  var
+    Regex: TPerlRegEx;
+begin
+  { Пустая строка }
+  if Trim(TestStr) = '' then
+  begin
+    Create;
+    Exit;
+  end;
+
+  inherited Create;
+  fN := TestN;
+
+  Regex := TPerlRegEx.Create;
+  try
+    Regex.RegEx := RE_Command;
+    Regex.Options := [preSingleLine];
+    Regex.Subject := TestStr;
+    if Regex.Match then
+    begin
+      repeat
+        if Regex.GroupCount >= 1 then
+        begin
+          AddCommand(Regex.Groups[1], Regex.Groups[2]);
+        end;
+      until not Regex.MatchAgain;
+    end;
+  finally
+    Regex.Free;
+  end;
 end;
 
 destructor TTest.Destroy;
@@ -365,6 +415,12 @@ begin
     Dispose(Items[i]);
 
   inherited;
+end;
+
+function TTest.Execute: TTestResult;
+begin
+  
+
 end;
 
 function TTest.Get(Index: Integer): PCommand;
@@ -397,50 +453,39 @@ var
   i: Integer;
 begin
   fFile.Free;
-//  for i := 0 to Count - 1 do
-//    Items[i].Free;
-//    FreeMem(Items[i]);
 
   inherited;
 end;
-//
-//function TPlan.Get(Index: Integer): PTest;
-//begin
-//  Result := PTest(inherited Get(Index));
-//end;
 
 procedure TPlan.LoadFromFile(const FileName: string);
 const
-  RE_Test = 'T(\d*)\r\n(.*?)(?:KT;|XX)';
-  RE_Command = 'T(\d*)\r\n(.*?)(?:KT;|XX)';
+//  RE_Test = 'T(\d*)\r\n(.*?)(?:KT;|XX)';
+  RE_Test = 'T(\d*)\r\n(.*?)KT;'; // регулярное выражение для поиска теста
 var
 	Regex: TPerlRegEx;
-	Strings: TStringList;
   i: Integer;
-
-  Test: TTest;
-  Command: PCommand;
 begin
+  { Проверка существования файла }
   if not FileExists(FileName) then
     Exit;
 
+  { Загрузка тектса программы и конвертация ее из OEM->ANSI }
   fFile.LoadFromFile(FileName);
   fFile.Text := StrOemToAnsi(fFile.Text);
 //  fFile.SaveToFile(ChangeFileExt(FileName, '.NEW'));
 
-  { Remove comments }
+  { Удаляем строки комментариев из текста программы }
   for i := fFile.count - 1 downto 0 do
   begin
     if Trim(fFile[I])[1] = '#' then
       fFile.Delete(I);
   end;
 
-  fCaption := fFile[0];
+  fCaption := Trim(fFile[0]); // 1-ая строка - Название плана
   Clear;
 
-  {  }
+  { Разбор текста программы по тестам }
   Regex := TPerlRegEx.Create;
-  Strings := TStringList.Create;
   try
     Regex.RegEx := RE_Test;
     Regex.Options := [preSingleLine, preMultiLine];
@@ -448,21 +493,25 @@ begin
     if Regex.Match then
     begin
       repeat
-//        if Regex.GroupCount >= 1 then
-//          Strings.Add(Regex.Groups[1])
-//        else
-//          Strings.Add('');
-//        Test := TTest.Create;
-//        GetMem(Test, SizeOf(TTest));
-//        Test.N := StrToInt(Regex.Groups[1]);
-//        Add(@Test);
+        if Regex.GroupCount >= 1 then
+        begin
+          Add(TTest.Create(StrToInt(Regex.Groups[1]), Regex.Groups[2]));
+        end;
       until not Regex.MatchAgain;
     end;
   finally
-    Strings.Free;
     Regex.Free;
   end;
+end;
 
+function TPlan.Execute(const RunMode: TRunMode): TPlanResult;
+var
+  i: Integer;
+begin
+  Result := prGood;
+  
+  for i := 0 to Count - 1 do
+    Items[i].Execute;
 end;
 
 end.
