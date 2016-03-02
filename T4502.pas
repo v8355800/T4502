@@ -13,6 +13,7 @@ type
 
   TOCTSet = '0'..'7';
 
+  PT4502_IO = ^TT4502_IO;
   TT4502_IO = class(TPCI1751)
   private
   protected
@@ -54,6 +55,7 @@ type
     function Add(Value: PCommand): Integer;
     function AddCommand(K, V: String): Integer;
     function Execute: TTestResult;
+    procedure ExecCommand(const Command: TCommand);
 
     property Items[Index: Integer]: PCommand read Get; default;
     property N: Cardinal read fN write fN;
@@ -97,7 +99,7 @@ type
 type
   TT4502 = class(TObject)
   private
-    fIO: TT4502_IO;
+//    fIO: TT4502_IO;
     fWP: TT4502_Program;
   protected
 
@@ -110,9 +112,12 @@ type
     procedure WriteCommand(Command, Data: TS4);
     function ReadCommand(Command: TS4): Word;
 
-    property IO: TT4502_IO read fIO;
+//    property IO: TT4502_IO read fIO;
     property WP: TT4502_Program read fWP;
   end;
+
+var
+  fIO: TT4502_IO;
 
 implementation
 
@@ -270,13 +275,13 @@ constructor TT4502.Create;
 begin
   inherited Create;
 
-  fIO := TT4502_IO.Create;
+//  fIO := TT4502_IO.Create;
   fWP := TT4502_Program.Create;
 end;
 
 destructor TT4502.Destroy;
 begin
-  fIO.Free;
+//  fIO.Free;
   fWP.Free;
   
   inherited;
@@ -417,10 +422,25 @@ begin
   inherited;
 end;
 
-function TTest.Execute: TTestResult;
+procedure TTest.ExecCommand(const Command: TCommand);
 begin
-  
+  if Assigned(fIO) then
+  begin
 
+  end;
+end;
+
+function TTest.Execute: TTestResult;
+var
+  Command: Integer;
+begin
+  write(#9);
+  for Command := 0 to Count-1 do
+  begin
+    write(Items[Command]^.K, ' ', Items[Command]^.V, '; ');
+    ExecCommand(Items[Command]^);
+  end;
+  Writeln;
 end;
 
 function TTest.Get(Index: Integer): PCommand;
@@ -506,12 +526,15 @@ end;
 
 function TPlan.Execute(const RunMode: TRunMode): TPlanResult;
 var
-  i: Integer;
+  Test: Integer;
 begin
   Result := prGood;
   
-  for i := 0 to Count - 1 do
-    Items[i].Execute;
+  for Test := 0 to Count - 1 do
+  begin
+    Writeln('Выполняется тест №', Test+1);
+    Items[Test].Execute;
+  end;
 end;
 
 end.
